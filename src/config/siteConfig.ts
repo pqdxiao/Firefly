@@ -22,7 +22,7 @@ const pages = resolvePageToggles({
 	// 项目展示页开关
 	projects: true,
 	// 相册页面开关
-	gallery: true,
+	gallery: false,
 	// 书签导航页面开关
 	booknav: true,
 	// 哔哩哔哩追番页面开关
@@ -42,28 +42,20 @@ const pages = resolvePageToggles({
 
 export const siteConfig: SiteConfig = {
 	// 站点标题
-	title: "Firefly",
+	title: "Ever98",
 
 	// 站点副标题
-	subtitle: "Demo site",
+	subtitle: "忆久久吧",
 
 	// 站点 URL
-	site_url: "https://firefly.cuteleaf.cn",
+	site_url: "https://blog.1998991.xyz",
 
 	// 站点描述
 	description:
-		"Firefly 是一款基于 Astro 框架和 Fuwari 模板开发的清新美观且现代化个人博客主题模板，专为技术爱好者和内容创作者设计。该主题融合了现代 Web 技术栈，提供了丰富的功能模块和高度可定制的界面，让您能够轻松打造出专业且美观的个人博客网站。",
+		"一个记录生活与技术的个人博客，分享学习笔记、开发经验与日常思考。",
 
 	// 站点关键词
-	keywords: [
-		"Firefly",
-		"Fuwari",
-		"Astro",
-		"ACGN",
-		"博客",
-		"技术博客",
-		"静态博客",
-	],
+	keywords: ["Ever98", "博客", "个人博客", "Astro", "技术分享", "生活记录"],
 
 	// 主题色
 	themeColor: {
@@ -117,7 +109,7 @@ export const siteConfig: SiteConfig = {
 			alt: "🍀",
 		},
 		// 导航栏标题
-		title: "Firefly Blog",
+		title: "Ever98",
 		// 全宽导航栏，导航栏是否占满屏幕宽度
 		widthFull: false,
 		// 导航菜单对齐方式，left：左对齐，center：居中
@@ -132,7 +124,7 @@ export const siteConfig: SiteConfig = {
 	},
 
 	// 站点开始日期，用于统计运行天数
-	siteStartDate: "2025-01-01",
+	siteStartDate: "2026-10-12",
 
 	// 站点时区（IANA 时区字符串），用于格式化bangumi、rss里的构建日期时间等等..
 	// 示例："Asia/Shanghai", "UTC", 如果为空，则按照构建服务器的时区进行时区转换
@@ -262,13 +254,13 @@ export const siteConfig: SiteConfig = {
 	// ── Bilibili配置 ──────────────────────────────────
 	bilibili: {
 		// 你的 Bilibili 用户 UID
-		uid: "38932988",
+		uid: "",
 	},
 
 	// ── 番组计划bangumi配置 ──────────────────────────────────
 	bangumi: {
 		// Bangumi用户ID
-		userId: "1143164",
+		userId: "",
 		// 数据模式：static=构建时获取，dynamic=客户端实时获取
 		// static 模式在构建时获取数据并静态渲染，部署后数据不更新
 		// dynamic 模式在浏览器中实时请求 API，始终显示最新数据
@@ -292,7 +284,7 @@ export const siteConfig: SiteConfig = {
 	// ── VNDB配置 ──────────────────────────────────
 	vndb: {
 		// VNDB 用户 ID
-		userId: "u358128",
+		userId: "",
 		// 数据模式：static=构建时获取，dynamic=客户端实时获取
 		// static 模式在构建时获取数据并静态渲染，部署后数据不更新
 		// dynamic 模式在浏览器中实时请求 API，始终显示最新数据
@@ -312,9 +304,9 @@ export const siteConfig: SiteConfig = {
 	// ── MyAnimeList配置 ──────────────────────────────────
 	mal: {
 		// MyAnimeList 用户名（列表需为公开状态，私密列表无法读取）
-		username: "cuteleaf",
+		username: "",
 		// MyAnimeList Client ID，在 https://myanimelist.net/apiconfig 注册免费应用后获取
-		clientId: "	0ef34371450f9c6c809deaadec6aa8f3",
+		clientId: "",
 		// MAL API 地址
 		apiUrl: "https://api.myanimelist.net/v2",
 		// 动画条目详情页地址，末尾需要带 /
