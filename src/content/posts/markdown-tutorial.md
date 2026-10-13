@@ -1,10 +1,10 @@
 ---
 title: Markdown 教程
-published: 1970-01-01
+published: 2022-10-13
 pinned: false
 description: 一个简明的 Markdown 博客示例。
-tags: [Markdown, 文章示例]
-category: 文章示例
+tags: [Markdown, 博文用例]
+category: 博文用例
 licenseName: "未授权"
 author: emn178
 sourceLink: "https://github.com/emn178/markdown"
