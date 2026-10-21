@@ -30,12 +30,25 @@ interface CfGeo {
 }
 
 interface RuntimeEnv {
-	env?: { DB?: D1Database };
 	cf?: CfGeo;
 }
 
-function getRuntime(locals: unknown): RuntimeEnv | undefined {
-	return (locals as { runtime?: RuntimeEnv } | undefined)?.runtime;
+/**
+ * 取 D1 binding。Astro v6+ 移除了 locals.runtime.env，
+ * 需从 "cloudflare:workers" 模块取 env；该模块只在 Cloudflare 运行时存在，
+ * 非 CF 环境（本地无 adapter dev、其他平台部署）导入失败时返回 undefined。
+ * 动态 specifier + @vite-ignore 避免 Vite 在非 CF 构建下静态解析报错。
+ */
+async function getDb(): Promise<D1Database | undefined> {
+	try {
+		const moduleSpecifier = "cloudflare:workers";
+		const { env } = (await import(/* @vite-ignore */ moduleSpecifier)) as {
+			env: { DB?: D1Database };
+		};
+		return env.DB;
+	} catch {
+		return undefined;
+	}
 }
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -69,10 +82,24 @@ async function visitorHash(request: Request): Promise<string> {
 		.join("");
 }
 
-function getGeo(request: Request, runtime: RuntimeEnv | undefined): CfGeo {
-	const cf = (request as Request & { cf?: CfGeo }).cf ?? runtime?.cf;
+function getGeo(request: Request, locals: unknown): CfGeo {
+	// request.cf 是 workerd 原生属性，adapter 转发时通常保留；
+	// 再兜底 locals.runtime.cf 与 cf-ipcountry 头，读取全程 try/catch 防御各版本 adapter 差异
+	let cf: CfGeo | undefined;
+	try {
+		cf = (request as Request & { cf?: CfGeo }).cf;
+	} catch {
+		/* ignore */
+	}
+	if (!cf) {
+		try {
+			cf = (locals as RuntimeEnv | undefined)?.cf;
+		} catch {
+			/* ignore */
+		}
+	}
 	return {
-		country: cf?.country,
+		country: cf?.country ?? request.headers.get("cf-ipcountry") ?? undefined,
 		region: cf?.region,
 		city: cf?.city,
 	};
@@ -99,9 +126,8 @@ function counterIncrement(db: D1Database, key: string): D1Statement {
 		.bind(key);
 }
 
-export const GET: APIRoute = async ({ locals }) => {
-	const runtime = getRuntime(locals);
-	const db = runtime?.env?.DB;
+export const GET: APIRoute = async () => {
+	const db = await getDb();
 	// 本地 dev 未开 adapter / 线上未绑定 D1：返回未配置，前端组件静默隐藏
 	if (!db) return jsonResponse({ ok: false, reason: "unconfigured" });
 	try {
@@ -115,13 +141,12 @@ export const GET: APIRoute = async ({ locals }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-	const runtime = getRuntime(locals);
-	const db = runtime?.env?.DB;
+	const db = await getDb();
 	if (!db) return jsonResponse({ ok: false, reason: "unconfigured" });
 	try {
 		const day = currentDay();
 		const vid = await visitorHash(request);
-		const geo = getGeo(request, runtime);
+		const geo = getGeo(request, locals);
 
 		// 去重写入：visit_days 主键 (day, vid) 保证同人同日只记一次；
 		// first_seen 保证 total_uv 是全站去重人数而不是人次
