@@ -1,7 +1,8 @@
 ---
 import fs from "node:fs";
 import path from "node:path";
-import { profileConfig } from "@/config";
+import VisitorStats from "@/components/common/VisitorStats.astro";
+import { profileConfig, visitorStatsConfig } from "@/config";
 import { url } from "@/utils/url-utils";
 
 const currentYear = new Date().getFullYear();
@@ -39,6 +40,7 @@ try {
 			<div class="mb-2">
 				{customFooterHtml && <div set:html={customFooterHtml} />}
 			</div>
+			{visitorStatsConfig.enable && <VisitorStats />}
 			<div class="mx-0.5 my-2.5 flex gap-x-2 gap-y-2.5 justify-center flex-wrap">
 				&copy; <span id="copyright-year">{currentYear}</span>
 				{profileConfig.name}. All Rights Reserved.

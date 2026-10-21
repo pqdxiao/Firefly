@@ -1,8 +1,20 @@
 {
 	"name": "firefly",
 	"compatibility_date": "2025-01-01",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"assets": {
 		"directory": "./dist"
-	}
+	},
+	// 页脚访问统计（/api/visit/）使用的 D1 数据库（binding 名与代码中 locals.runtime.env.DB 对应，勿改）。
+	// 若换了新数据库：改 database_id 后重新执行
+	//   npx wrangler d1 execute blog-stats --remote --file=scripts/visitor-stats.sql
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "blog-stats",
+			"database_id": "55061392-7709-41eb-a7e4-df9b82a9fadb"
+		}
+	]
 }

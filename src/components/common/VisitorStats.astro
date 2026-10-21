@@ -1,0 +1,90 @@
+---
+import { url } from "@/utils/url-utils";
+
+// 页脚访问统计：今日/累计访客数 + 访客来源。
+// 只渲染骨架，数据由下方内联脚本请求 /api/visit/ 填充；
+// 接口未配置或请求失败时整块保持隐藏。由 Footer.astro 按 visitorStatsConfig.enable 挂载。
+const endpoint = url("api/visit/");
+---
+
+<div
+	id="visitor-stats"
+	class="mx-0.5 my-2.5 hidden flex-wrap items-center justify-center gap-x-2 gap-y-2.5 text-sm"
+	data-endpoint={endpoint}
+	data-pagefind-ignore
+	aria-label="站点访问统计"
+>
+	<span>
+		今日 <span class="vs-today font-medium text-(--primary)">–</span> 人
+	</span>
+	<span aria-hidden="true">/</span>
+	<span>
+		总访问 <span class="vs-total font-medium text-(--primary)">–</span> 人
+	</span>
+	<span class="vs-geo hidden">
+		<span aria-hidden="true">/</span>
+		欢迎来自 <span class="vs-geo-text font-medium text-(--primary)" /> 的朋友
+	</span>
+</div>
+
+<script is:inline data-swup-ignore-script>
+	// 访问统计上报：每个浏览器会话只 POST 一次；
+	// 同会话再次进入改为 GET 只读展示。服务端按访客哈希再去重一层。
+	(() => {
+		const root = document.getElementById("visitor-stats");
+		if (!root || root.dataset.vsInit === "1") return;
+		root.dataset.vsInit = "1";
+		const endpoint = root.dataset.endpoint || "/api/visit/";
+
+		const render = (data) => {
+			if (!data || data.ok !== true) return;
+			const fmt = (n) => Number(n || 0).toLocaleString();
+			const today = root.querySelector(".vs-today");
+			const total = root.querySelector(".vs-total");
+			if (today) today.textContent = fmt(data.today);
+			if (total) total.textContent = fmt(data.total);
+
+			const geo = data.geo || {};
+			let country = "";
+			try {
+				if (geo.country) {
+					country =
+						new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(
+							geo.country,
+						) || "";
+				}
+			} catch {
+				country = geo.country || "";
+			}
+			const parts = [
+				...new Set([country, geo.region, geo.city].filter(Boolean)),
+			];
+			const geoWrap = root.querySelector(".vs-geo");
+			const geoText = root.querySelector(".vs-geo-text");
+			if (geoWrap && geoText && parts.length > 0) {
+				geoText.textContent = parts.join(" · ");
+				geoWrap.classList.remove("hidden");
+			}
+			root.style.display = "flex";
+			root.classList.remove("hidden");
+		};
+
+		const request = (method) =>
+			fetch(endpoint, { method })
+				.then((res) => (res.ok ? res.json() : null))
+				.then(render)
+				.catch(() => {});
+
+		try {
+			if (sessionStorage.getItem("vs-reported") === "1") {
+				request("GET");
+			} else {
+				sessionStorage.setItem("vs-reported", "1");
+				request("POST");
+			}
+		} catch {
+			// sessionStorage 不可用（如隐私模式）时直接上报
+			request("POST");
+		}
+	})();
+</script>

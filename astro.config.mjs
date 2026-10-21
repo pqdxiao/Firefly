@@ -62,6 +62,8 @@ if (process.env.NODE_ENV === "development") {
 const adapter = process.env.CF_WORKERS
 	? cloudflare({
 			prerenderEnvironment: "node",
+			// 本地 CF_WORKERS=1 pnpm dev 时从 wrangler.jsonc 读取 D1 等 bindings（仅 dev 生效）
+			platformProxy: { enabled: true },
 		})
 	: undefined;
 
