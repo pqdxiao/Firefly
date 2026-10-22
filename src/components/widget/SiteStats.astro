@@ -1,7 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import WidgetLayout from "@/components/common/WidgetLayout.astro";
-import { siteConfig } from "@/config";
+import { siteConfig, visitorStatsConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import type { WidgetComponentConfig } from "@/types/config";
@@ -10,6 +10,7 @@ import {
 	getSortedPosts,
 	getTagList,
 } from "@/utils/content-utils";
+import { url } from "@/utils/url-utils";
 
 interface Props {
 	class?: string;
@@ -69,6 +70,11 @@ const lastActivityDate = posts.reduce<Date | null>((latest, post) => {
 const lastPostDate = lastActivityDate ? lastActivityDate.toISOString() : null;
 
 const todayText = i18n(I18nKey.today);
+
+// 访客地图：数据由内联脚本从 /api/visit/geo/（聚合坐标）与 public/visitor-map-dots.json（点阵底图）加载，
+// 生成脚本 scripts/generate-visitor-map-dots.ts（pnpm visitor-map），投影参数与该脚本保持一致
+const geoEndpoint = url("api/visit/geo/");
+const dotsEndpoint = url("visitor-map-dots.json");
 
 const stats = [
 	{
@@ -139,6 +145,29 @@ const stats = [
       </div>
     ))}
   </div>
+  {visitorStatsConfig.enable && (
+    <div class="visitor-map mt-1 border-t border-dashed border-black/10 px-3 pt-2.5 dark:border-white/15">
+      <div class="mb-1.5 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+        <span>访客地图</span>
+        <span id="visitor-map-caption">加载中…</span>
+      </div>
+      <svg
+        id="visitor-map-svg"
+        viewBox="0 0 360 141"
+        class="h-auto w-full"
+        role="img"
+        aria-label="访客来源世界地图"
+      >
+        <path
+          id="visitor-map-world"
+          d=""
+          fill="currentColor"
+          class="text-neutral-300 dark:text-neutral-600"
+        ></path>
+        <g id="visitor-map-points"></g>
+      </svg>
+    </div>
+  )}
 </WidgetLayout>
 
 <script is:inline define:vars={{ siteStartDate, lastPostDate, todayText }}>
@@ -189,4 +218,80 @@ const stats = [
       setTimeout(updateDynamicStats, 100);
     });
   }
+</script>
+
+<script is:inline define:vars={{ geoEndpoint, dotsEndpoint }}>
+  // 访客地图：点阵底图 + 到访坐标脉冲点；数据有内存缓存，swup 换页后由监听器重绘新节点
+  (function () {
+    function initVisitorMap() {
+      const svg = document.getElementById("visitor-map-svg");
+      if (!svg || svg.dataset.vsMapInit === "1") return;
+      svg.dataset.vsMapInit = "1";
+
+      const render = function (geo, world) {
+        const caption = document.getElementById("visitor-map-caption");
+        const g = document.getElementById("visitor-map-points");
+        const path = document.getElementById("visitor-map-world");
+        if (path && world && world.dots) {
+          let d = "";
+          const dots = world.dots;
+          for (let i = 0; i < dots.length; i += 2) {
+            d +=
+              "M" + (dots[i] + 180) + " " + (world.latMax - dots[i + 1]) +
+              "h1.5v1.5h-1.5z";
+          }
+          path.setAttribute("d", d);
+        }
+        const points = geo && geo.ok === true ? geo.points || [] : [];
+        if (g) {
+          g.innerHTML = points
+            .map(function (p) {
+              const x = p.lng + 180;
+              const y = 85 - p.lat;
+              const place = [p.name, p.country].filter(Boolean).join(", ");
+              return (
+                '<circle cx="' + x + '" cy="' + y +
+                '" r="2" fill="var(--primary)"><title>' + place + " · " + p.n +
+                " 人</title></circle>" +
+                '<circle cx="' + x + '" cy="' + y +
+                '" r="2" fill="none" stroke="var(--primary)" stroke-width="0.8">' +
+                '<animate attributeName="r" values="2;7" dur="2s" repeatCount="indefinite"></animate>' +
+                '<animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite"></animate>' +
+                "</circle>"
+              );
+            })
+            .join("");
+        }
+        if (caption) {
+          caption.textContent = points.length
+            ? "足迹 " + points.length + " 座城市"
+            : "暂无足迹";
+        }
+      };
+
+      if (!window.__visitorMapData) {
+        window.__visitorMapData = Promise.all([
+          fetch(geoEndpoint)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; }),
+          fetch(dotsEndpoint)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; }),
+        ]).then(function (res) { return { geo: res[0], world: res[1] }; });
+      }
+      window.__visitorMapData.then(function (data) {
+        render(data.geo, data.world);
+      });
+    }
+
+    initVisitorMap();
+
+    // 防止 Swup 切页重跑脚本时重复注册监听器
+    if (!window.__visitorMapListen) {
+      window.__visitorMapListen = true;
+      document.addEventListener("swup:contentReplaced", function () {
+        setTimeout(initVisitorMap, 100);
+      });
+    }
+  })();
 </script>

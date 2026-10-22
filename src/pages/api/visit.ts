@@ -1,67 +1,20 @@
 import type { APIRoute } from "astro";
 import { siteConfig, visitorStatsConfig } from "@/config";
+import {
+	type D1Database,
+	type D1Statement,
+	getDb,
+	getGeo,
+	jsonResponse,
+} from "@/utils/visitor-stats";
 
 // 访问统计 API：运行在 Cloudflare Worker 上，数据写入 D1（binding: DB）
 //   POST /api/visit/  记录一次访问并返回统计（同访客同日自动去重）
 //   GET  /api/visit/  仅查询统计，不记录（同会话重复进入时前端改用 GET）
-// 隐私：只存 SHA-256(IP + UA + 盐) 的哈希与国家/省/市，不存原始 IP。
+// 隐私：访客身份只存 SHA-256(IP + UA + 盐) 的哈希；真实 IP 与位置仅落库供站长自查，
+//       接口响应一律不返回 IP。访客地图聚合数据见 /api/visit/geo/。
 
 export const prerender = false;
-
-/** D1 最小结构类型，避免为类型检查引入 @cloudflare/workers-types 依赖 */
-interface D1Meta {
-	changes?: number;
-}
-interface D1Statement {
-	bind(...values: (string | number | null)[]): D1Statement;
-	run(): Promise<{ meta?: D1Meta }>;
-	first<T>(column: string): Promise<T | null>;
-}
-interface D1Database {
-	prepare(query: string): D1Statement;
-	batch(statements: D1Statement[]): Promise<{ meta?: D1Meta }[]>;
-}
-
-/** Cloudflare 边缘自带的请求地理信息 */
-interface CfGeo {
-	country?: string; // ISO 3166 国家码，如 "CN"
-	region?: string; // 省/州，如 "Zhejiang"
-	city?: string; // 城市，如 "Hangzhou"
-	latitude?: string; // 纬度，如 "30.29400"（访客地图用）
-	longitude?: string; // 经度，如 "120.16190"
-}
-
-interface RuntimeEnv {
-	cf?: CfGeo;
-}
-
-/**
- * 取 D1 binding。Astro v6+ 移除了 locals.runtime.env，
- * 需从 "cloudflare:workers" 模块取 env；该模块只在 Cloudflare 运行时存在，
- * 非 CF 环境（本地无 adapter dev、其他平台部署）导入失败时返回 undefined。
- * 动态 specifier + @vite-ignore 避免 Vite 在非 CF 构建下静态解析报错。
- */
-async function getDb(): Promise<D1Database | undefined> {
-	try {
-		const moduleSpecifier = "cloudflare:workers";
-		const { env } = (await import(/* @vite-ignore */ moduleSpecifier)) as {
-			env: { DB?: D1Database };
-		};
-		return env.DB;
-	} catch {
-		return undefined;
-	}
-}
-
-function jsonResponse(data: unknown, status = 200): Response {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: {
-			"content-type": "application/json; charset=utf-8",
-			"cache-control": "no-store",
-		},
-	});
-}
 
 /** “今日”按配置时区切分（默认 UTC+8），返回 YYYY-MM-DD */
 function currentDay(): string {
@@ -77,31 +30,6 @@ async function visitorHash(ip: string, ua: string): Promise<string> {
 	return Array.from(new Uint8Array(digest).slice(0, 12))
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
-}
-
-function getGeo(request: Request, locals: unknown): CfGeo {
-	// request.cf 是 workerd 原生属性，adapter 转发时通常保留；
-	// 再兜底 locals.runtime.cf 与 cf-ipcountry 头，读取全程 try/catch 防御各版本 adapter 差异
-	let cf: CfGeo | undefined;
-	try {
-		cf = (request as Request & { cf?: CfGeo }).cf;
-	} catch {
-		/* ignore */
-	}
-	if (!cf) {
-		try {
-			cf = (locals as RuntimeEnv | undefined)?.cf;
-		} catch {
-			/* ignore */
-		}
-	}
-	return {
-		country: cf?.country ?? request.headers.get("cf-ipcountry") ?? undefined,
-		region: cf?.region,
-		city: cf?.city,
-		latitude: cf?.latitude,
-		longitude: cf?.longitude,
-	};
 }
 
 async function readStats(db: D1Database, day: string) {
