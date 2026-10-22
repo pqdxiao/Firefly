@@ -27,6 +27,8 @@ interface CfGeo {
 	country?: string; // ISO 3166 国家码，如 "CN"
 	region?: string; // 省/州，如 "Zhejiang"
 	city?: string; // 城市，如 "Hangzhou"
+	latitude?: string; // 纬度，如 "30.29400"（访客地图用）
+	longitude?: string; // 经度，如 "120.16190"
 }
 
 interface RuntimeEnv {
@@ -68,12 +70,7 @@ function currentDay(): string {
 }
 
 /** 访客唯一标识：SHA-256(IP + UA + 盐) 截断为 24 位十六进制 */
-async function visitorHash(request: Request): Promise<string> {
-	const ip =
-		request.headers.get("cf-connecting-ip") ??
-		request.headers.get("x-real-ip") ??
-		"unknown";
-	const ua = request.headers.get("user-agent") ?? "";
+async function visitorHash(ip: string, ua: string): Promise<string> {
 	const salt = visitorStatsConfig.salt || siteConfig.site_url;
 	const data = new TextEncoder().encode(`${ip}|${ua}|${salt}`);
 	const digest = await crypto.subtle.digest("SHA-256", data);
@@ -102,6 +99,8 @@ function getGeo(request: Request, locals: unknown): CfGeo {
 		country: cf?.country ?? request.headers.get("cf-ipcountry") ?? undefined,
 		region: cf?.region,
 		city: cf?.city,
+		latitude: cf?.latitude,
+		longitude: cf?.longitude,
 	};
 }
 
@@ -145,22 +144,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	if (!db) return jsonResponse({ ok: false, reason: "unconfigured" });
 	try {
 		const day = currentDay();
-		const vid = await visitorHash(request);
+		const ip =
+			request.headers.get("cf-connecting-ip") ??
+			request.headers.get("x-real-ip") ??
+			"unknown";
+		const vid = await visitorHash(ip, request.headers.get("user-agent") ?? "");
 		const geo = getGeo(request, locals);
 
-		// 去重写入：visit_days 主键 (day, vid) 保证同人同日只记一次；
-		// first_seen 保证 total_uv 是全站去重人数而不是人次
+		// 去重写入：visit_days 主键 (day, vid) 保证同人同日只记一次（记录首次到访的 IP 与位置）；
+		// first_seen 保证 total_uv 是全站去重人数而不是人次。
+		// IP 仅落库供站长自查，公开接口（GET/POST 响应）一律不返回
 		const [dayRes, seenRes] = await db.batch([
 			db
 				.prepare(
-					"INSERT OR IGNORE INTO visit_days (day, vid, country, region, city, ts) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+					"INSERT OR IGNORE INTO visit_days (day, vid, ip, country, region, city, latitude, longitude, ts) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
 				)
 				.bind(
 					day,
 					vid,
+					ip,
 					geo.country ?? null,
 					geo.region ?? null,
 					geo.city ?? null,
+					geo.latitude ?? null,
+					geo.longitude ?? null,
 					Date.now(),
 				),
 			db

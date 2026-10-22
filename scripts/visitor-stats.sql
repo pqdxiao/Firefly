@@ -9,13 +9,17 @@ CREATE TABLE IF NOT EXISTS counters (
 	value INTEGER NOT NULL DEFAULT 0
 );
 
--- 每日去重访客：一行 = 某访客某天首次到访，同时保留来源地理信息用于回溯
+-- 每日去重访客：一行 = 某访客某天首次到访，保留真实 IP 与来源地理信息（含经纬度，供访客地图用）。
+-- IP 仅存库供站长自查，公开接口不返回
 CREATE TABLE IF NOT EXISTS visit_days (
 	day TEXT NOT NULL,
 	vid TEXT NOT NULL,
+	ip TEXT,
 	country TEXT,
 	region TEXT,
 	city TEXT,
+	latitude TEXT,
+	longitude TEXT,
 	ts INTEGER NOT NULL,
 	PRIMARY KEY (day, vid)
 );
@@ -28,3 +32,5 @@ CREATE TABLE IF NOT EXISTS first_seen (
 );
 
 INSERT OR IGNORE INTO counters (key, value) VALUES ('total_uv', 0);
+-- 如需设置起始基数（当前线上为 10000），改上面的初始值或执行：
+--   UPDATE counters SET value = 10000 WHERE key = 'total_uv';
