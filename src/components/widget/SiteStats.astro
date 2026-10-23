@@ -149,22 +149,20 @@ const stats = [
     <div class="visitor-map mt-1 border-t border-dashed border-black/10 px-3 pt-2.5 dark:border-white/15">
       <div class="mb-1.5 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
         <span>访客地图</span>
-        <span id="visitor-map-caption">加载中…</span>
+        <span class="visitor-map-caption">加载中…</span>
       </div>
       <svg
-        id="visitor-map-svg"
+        class="visitor-map-svg h-auto w-full"
         viewBox="0 0 360 141"
-        class="h-auto w-full"
         role="img"
         aria-label="访客来源世界地图"
       >
         <path
-          id="visitor-map-world"
+          class="visitor-map-world text-neutral-300 dark:text-neutral-600"
           d=""
           fill="currentColor"
-          class="text-neutral-300 dark:text-neutral-600"
         ></path>
-        <g id="visitor-map-points"></g>
+        <g class="visitor-map-points"></g>
       </svg>
     </div>
   )}
@@ -221,66 +219,70 @@ const stats = [
 </script>
 
 <script is:inline define:vars={{ geoEndpoint, dotsEndpoint }}>
-  // 访客地图：点阵底图 + 到访坐标脉冲点；数据有内存缓存，swup 换页后由监听器重绘新节点
+  // 访客地图：点阵底图 + 到访坐标脉冲点；数据有内存缓存，swup 换页后由监听器重绘新节点。
+  // 注意：侧边栏 widget 会在桌面栏和移动底栏各渲染一份，必须用 class 遍历所有副本，
+  // 不能用 getElementById（只能拿到第一份，另一份会永远停在「加载中」）
   (function () {
     function initVisitorMap() {
-      const svg = document.getElementById("visitor-map-svg");
-      if (!svg || svg.dataset.vsMapInit === "1") return;
-      svg.dataset.vsMapInit = "1";
+      document.querySelectorAll(".visitor-map").forEach(function (block) {
+        const svg = block.querySelector(".visitor-map-svg");
+        if (!svg || svg.dataset.vsMapInit === "1") return;
+        svg.dataset.vsMapInit = "1";
+        const caption = block.querySelector(".visitor-map-caption");
+        const g = block.querySelector(".visitor-map-points");
+        const path = block.querySelector(".visitor-map-world");
 
-      const render = function (geo, world) {
-        const caption = document.getElementById("visitor-map-caption");
-        const g = document.getElementById("visitor-map-points");
-        const path = document.getElementById("visitor-map-world");
-        if (path && world && world.dots) {
-          let d = "";
-          const dots = world.dots;
-          for (let i = 0; i < dots.length; i += 2) {
-            d +=
-              "M" + (dots[i] + 180) + " " + (world.latMax - dots[i + 1]) +
-              "h1.5v1.5h-1.5z";
+        const render = function (geo, world) {
+          if (path && world && world.dots) {
+            let d = "";
+            const dots = world.dots;
+            for (let i = 0; i < dots.length; i += 2) {
+              d +=
+                "M" + (dots[i] + 180) + " " + (world.latMax - dots[i + 1]) +
+                "h1.5v1.5h-1.5z";
+            }
+            path.setAttribute("d", d);
           }
-          path.setAttribute("d", d);
-        }
-        const points = geo && geo.ok === true ? geo.points || [] : [];
-        if (g) {
-          g.innerHTML = points
-            .map(function (p) {
-              const x = p.lng + 180;
-              const y = 85 - p.lat;
-              const place = [p.name, p.country].filter(Boolean).join(", ");
-              return (
-                '<circle cx="' + x + '" cy="' + y +
-                '" r="2" fill="var(--primary)"><title>' + place + " · " + p.n +
-                " 人</title></circle>" +
-                '<circle cx="' + x + '" cy="' + y +
-                '" r="2" fill="none" stroke="var(--primary)" stroke-width="0.8">' +
-                '<animate attributeName="r" values="2;7" dur="2s" repeatCount="indefinite"></animate>' +
-                '<animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite"></animate>' +
-                "</circle>"
-              );
-            })
-            .join("");
-        }
-        if (caption) {
-          caption.textContent = points.length
-            ? "足迹 " + points.length + " 座城市"
-            : "暂无足迹";
-        }
-      };
+          const points = geo && geo.ok === true ? geo.points || [] : [];
+          if (g) {
+            g.innerHTML = points
+              .map(function (p) {
+                const x = p.lng + 180;
+                const y = 85 - p.lat;
+                const place = [p.name, p.country].filter(Boolean).join(", ");
+                return (
+                  '<circle cx="' + x + '" cy="' + y +
+                  '" r="2" fill="var(--primary)"><title>' + place + " · " + p.n +
+                  " 人</title></circle>" +
+                  '<circle cx="' + x + '" cy="' + y +
+                  '" r="2" fill="none" stroke="var(--primary)" stroke-width="0.8">' +
+                  '<animate attributeName="r" values="2;7" dur="2s" repeatCount="indefinite"></animate>' +
+                  '<animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite"></animate>' +
+                  "</circle>"
+                );
+              })
+              .join("");
+          }
+          if (caption) {
+            caption.textContent = points.length
+              ? "足迹 " + points.length + " 座城市"
+              : "暂无足迹";
+          }
+        };
 
-      if (!window.__visitorMapData) {
-        window.__visitorMapData = Promise.all([
-          fetch(geoEndpoint)
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .catch(function () { return null; }),
-          fetch(dotsEndpoint)
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .catch(function () { return null; }),
-        ]).then(function (res) { return { geo: res[0], world: res[1] }; });
-      }
-      window.__visitorMapData.then(function (data) {
-        render(data.geo, data.world);
+        if (!window.__visitorMapData) {
+          window.__visitorMapData = Promise.all([
+            fetch(geoEndpoint)
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .catch(function () { return null; }),
+            fetch(dotsEndpoint)
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .catch(function () { return null; }),
+          ]).then(function (res) { return { geo: res[0], world: res[1] }; });
+        }
+        window.__visitorMapData.then(function (data) {
+          render(data.geo, data.world);
+        });
       });
     }
 
