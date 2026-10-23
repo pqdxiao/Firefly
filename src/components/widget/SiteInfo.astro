@@ -1,5 +1,4 @@
 ---
-import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { Icon } from "astro-icon/components";
 import ci from "ci-info";
@@ -10,6 +9,7 @@ import { i18n } from "@/i18n/translation";
 import type { WidgetComponentConfig } from "@/types/config";
 import { detectBuildPlatform } from "@/utils/build-platform";
 import { formatDateI18nWithTime } from "@/utils/date-utils";
+import blogPkg from "../../../package.json";
 
 interface Props {
 	class?: string;
@@ -23,14 +23,9 @@ const showTitle = widgetConfig?.showTitle !== false;
 
 // ---- 构建时收集版本和环境信息 ----
 
-// 博客版本（从 package.json 读取）
-let blogVersion = "unknown";
-try {
-	const pkg = JSON.parse(
-		readFileSync(new URL("../../../package.json", import.meta.url), "utf-8"),
-	);
-	blogVersion = pkg.version || "Firefly unknown";
-} catch {}
+// 博客版本（构建时由 Vite 从 package.json 内联；不能用相对路径 readFileSync——
+// 生产构建后 import.meta.url 指向 dist/chunks，相对路径会解析到项目外导致读取失败）
+const blogVersion = blogPkg.version || "unknown";
 
 // Astro 版本（从已安装的 astro 包读取）
 let astroVersion = "unknown";
