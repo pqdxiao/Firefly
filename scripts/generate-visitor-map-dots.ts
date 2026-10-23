@@ -88,7 +88,8 @@ const land = feature(topo as never, topo.objects.land as never) as unknown;
 const polygons = extractPolygons(land);
 const boxes = polygons.map(bbox);
 
-const dots: [number, number][] = [];
+// 产物为扁平数组 [lng0, lat0, lng1, lat1, ...]（SiteStats.astro 的渲染按此格式读取）
+const dots: number[] = [];
 for (let lat = LAT_MIN; lat < LAT_MAX; lat += STEP) {
 	for (let lng = LNG_MIN; lng < LNG_MAX; lng += STEP) {
 		// 取格子中心做陆地判定
@@ -98,7 +99,7 @@ for (let lat = LAT_MIN; lat < LAT_MAX; lat += STEP) {
 			const [minX, minY, maxX, maxY] = boxes[p];
 			if (cl < minX || cl > maxX || ca < minY || ca > maxY) continue;
 			if (pointInPolygon(cl, ca, polygons[p])) {
-				dots.push([Math.round(cl * 10) / 10, Math.round(ca * 10) / 10]);
+				dots.push(Math.round(cl * 10) / 10, Math.round(ca * 10) / 10);
 				break;
 			}
 		}
@@ -113,5 +114,5 @@ const payload = JSON.stringify({
 });
 fs.writeFileSync(outPath, payload);
 console.log(
-	`visitor-map-dots.json: ${dots.length} dots, ${(payload.length / 1024).toFixed(1)} KB -> ${outPath}`,
+	`visitor-map-dots.json: ${dots.length / 2} dots, ${(payload.length / 1024).toFixed(1)} KB -> ${outPath}`,
 );
