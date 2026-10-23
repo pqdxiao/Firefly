@@ -161,6 +161,7 @@ const stats = [
           class="visitor-map-world text-neutral-400 dark:text-neutral-500"
           d=""
           fill="currentColor"
+          shape-rendering="crispEdges"
         ></path>
         <g class="visitor-map-points"></g>
       </svg>
@@ -239,7 +240,7 @@ const stats = [
             for (let i = 0; i < dots.length; i += 2) {
               d +=
                 "M" + (dots[i] + 180) + " " + (world.latMax - dots[i + 1]) +
-                "h1.8v1.8h-1.8z";
+                "h2v2h-2z";
             }
             path.setAttribute("d", d);
           }
