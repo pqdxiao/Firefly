@@ -158,7 +158,7 @@ const stats = [
         aria-label="访客来源世界地图"
       >
         <path
-          class="visitor-map-world text-neutral-300 dark:text-neutral-600"
+          class="visitor-map-world text-neutral-400 dark:text-neutral-500"
           d=""
           fill="currentColor"
         ></path>
@@ -239,7 +239,7 @@ const stats = [
             for (let i = 0; i < dots.length; i += 2) {
               d +=
                 "M" + (dots[i] + 180) + " " + (world.latMax - dots[i + 1]) +
-                "h1.5v1.5h-1.5z";
+                "h1.8v1.8h-1.8z";
             }
             path.setAttribute("d", d);
           }
@@ -252,12 +252,12 @@ const stats = [
                 const place = [p.name, p.country].filter(Boolean).join(", ");
                 return (
                   '<circle cx="' + x + '" cy="' + y +
-                  '" r="2" fill="var(--primary)"><title>' + place + " · " + p.n +
-                  " 人</title></circle>" +
+                  '" r="2.6" fill="var(--primary)"><title>' + place + " · " +
+                  p.n + " 人</title></circle>" +
                   '<circle cx="' + x + '" cy="' + y +
-                  '" r="2" fill="none" stroke="var(--primary)" stroke-width="0.8">' +
-                  '<animate attributeName="r" values="2;7" dur="2s" repeatCount="indefinite"></animate>' +
-                  '<animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite"></animate>' +
+                  '" r="2.6" fill="none" stroke="var(--primary)" stroke-width="1">' +
+                  '<animate attributeName="r" values="2.6;8" dur="2s" repeatCount="indefinite"></animate>' +
+                  '<animate attributeName="opacity" values="0.9;0" dur="2s" repeatCount="indefinite"></animate>' +
                   "</circle>"
                 );
               })
